@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	cmap "github.com/orcaman/concurrent-map"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -34,31 +37,31 @@ func init() {
 
 // MonitorSQS Retrieves the attributes of all allowed queues from SQS and appends the metrics
 func MonitorSQS() error {
-	queues, _ , err := getQueues()
+	queues, _, err := getQueues()
 	if err != nil {
 		return fmt.Errorf("[MONITORING ERROR]: Error occurred while retrieve queues info from SQS: %v", err)
 	}
 
-	for queue, attr := range queues {
-		msgAvailable, msgError := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessages"], 64)
-		msgDelayed, delayError := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesDelayed"], 64)
-		msgNotVisible, invisibleError := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesNotVisible"], 64)
-		
-		if msgError != nil {
-			return fmt.Errorf("Error in converting ApproximateNumberOfMessages: %v", msgError)
-		}
-		visibleMessageGauge.WithLabelValues(queue).Add(msgAvailable)
+	queues.IterCb(func(key string, v interface{}) {
+		attr, ok := v.(*sqs.GetQueueAttributesOutput)
 
-		if delayError != nil {
-			return fmt.Errorf("Error in converting ApproximateNumberOfMessagesDelayed: %v", delayError)
+		if !ok {
+			return
 		}
-		delayedMessageGauge.WithLabelValues(queue).Add(msgDelayed)
 
-		if invisibleError != nil {
-			return fmt.Errorf("Error in converting ApproximateNumberOfMessagesNotVisible: %v", invisibleError)
-		}
-		invisibleMessageGauge.WithLabelValues(queue).Add(msgNotVisible)
-	}
+		msgAvailable, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessages"], 64)
+		msgDelayed, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesDelayed"], 64)
+		msgNotVisible, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesNotVisible"], 64)
+
+		//fmt.Printf("sqs_messages_visible{queue_name=\"%s} %+v\n", key, msgAvailable)
+		//fmt.Printf("sqs_messages_delay{queue_name=\"%s} %+v\n", key, msgDelayed)
+		//fmt.Printf("sqs_messages_not_visible{queue_name=\"%s} %+v\n", key, msgNotVisible)
+
+		visibleMessageGauge.WithLabelValues(key).Set(msgAvailable)
+		delayedMessageGauge.WithLabelValues(key).Set(msgDelayed)
+		invisibleMessageGauge.WithLabelValues(key).Set(msgNotVisible)
+	})
+
 	return nil
 }
 
@@ -68,47 +71,59 @@ func getQueueName(url string) (queueName string) {
 	return
 }
 
-func getQueues() (queues map[string]*sqs.GetQueueAttributesOutput, tags map[string]*sqs.ListQueueTagsOutput, err error) {
+func getQueues() (queues cmap.ConcurrentMap, tags cmap.ConcurrentMap, err error) {
+	queuesStart := time.Now()
+
 	sess := session.Must(session.NewSession())
 	client := sqs.New(sess)
 	result, err := client.ListQueues(nil)
+
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Println(result)
+
+	queuesDuration := time.Since(queuesStart)
+	fmt.Println("Total time of func getQueues():")
+	fmt.Println(queuesDuration)
+
+	//fmt.Println(result)
 	if result.QueueUrls == nil {
 		err = fmt.Errorf("SQS did not return any QueueUrls")
 		return nil, nil, err
 	}
 
-	queues = make(map[string]*sqs.GetQueueAttributesOutput)
-	tags = make(map[string]*sqs.ListQueueTagsOutput)
+	queues = cmap.New()
+	tags = cmap.New()
+
+	wg := sync.WaitGroup{}
 
 	for _, urls := range result.QueueUrls {
-		params := &sqs.GetQueueAttributesInput{
-			QueueUrl: aws.String(*urls),
-			AttributeNames: []*string{
-				aws.String("ApproximateNumberOfMessages"),
-				aws.String("ApproximateNumberOfMessagesDelayed"),
-				aws.String("ApproximateNumberOfMessagesNotVisible"),
-			},
-		}
+		urls := urls
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			params := &sqs.GetQueueAttributesInput{
+				QueueUrl: aws.String(*urls),
+				AttributeNames: []*string{
+					aws.String("ApproximateNumberOfMessages"),
+					aws.String("ApproximateNumberOfMessagesDelayed"),
+					aws.String("ApproximateNumberOfMessagesNotVisible"),
+				},
+			}
 
-		tagsParams := &sqs.ListQueueTagsInput{
-			QueueUrl: aws.String(*urls),
-		}
+			tagsParams := &sqs.ListQueueTagsInput{
+				QueueUrl: aws.String(*urls),
+			}
 
-		resp, err := client.GetQueueAttributes(params)
-		if err != nil {
-			return nil, nil, err
-		}
-		tagsResp, err := client.ListQueueTags(tagsParams)
-		if err != nil {
-			return nil, nil, err
-		}
-		queueName := getQueueName(*urls)
-		queues[queueName] = resp
-		tags[queueName] = tagsResp
+			resp, _ := client.GetQueueAttributes(params)
+			tagsResp, _ := client.ListQueueTags(tagsParams)
+			queueName := getQueueName(*urls)
+
+			queues.Set(queueName, resp)
+			tags.Set(queueName, tagsResp)
+		}()
 	}
-	return queues,tags, nil
+	wg.Wait()
+
+	return queues, tags, nil
 }

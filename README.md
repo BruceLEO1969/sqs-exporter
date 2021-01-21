@@ -2,7 +2,7 @@
 
 A Prometheus metrics exporter for AWS SQS queues
 
-> **A few words of Thanks:** Most of the code in this repo is borrowed from [ashiddo11/sqs-exporter](https://github.com/ashiddo11/sqs-exporter) with bundle of thanks and love :pray: :heart:. I didn't submit this as a pull request to the original repository, since I have added Prometheus client. Whereas, some users of the original repository may not be using Prometheus at all. 
+> **A few words of Thanks:** Most of the code in this repo is borrowed from [candeemis/sqs-prometheus-exporter](https://github.com/candeemis/sqs-prometheus-exporter) with bundle of thanks and love :pray: :heart:. I didn't submit this as a pull request to the original repository, since I switch code only to meet my need. 
 
 ## Metrics
 
@@ -53,15 +53,15 @@ The app needs sqs list and read access to the sqs policies
 | Variable      | Default Value | Description                                                  |
 |---------------|:---------|:-------------------------------------------------------------|
 | PORT          | 9434     | The port for metrics server                                  |
-| INTERVAL      | 1        | The interval in minutes to get the status of SQS queues      |
 | ENDPOINT      | metrics  | The metrics endpoint                                         |
-| KEEP_RUNNING  | true     | The flag to terminate the service in case of monitoring error |
+
 
 
 ## Running
 
-```docker run -e INTERVAL=5 -e KEEP_RUNNING=false -d -p 9434:9434 nadeemjamali/sqs-prometheus-exporter```
+```docker run -d -p 9434:9434 bruceleo1969/sqs-exporter```
 
 You can provide the AWS credentials as environment variables depending upon your security rules configured in AWS;
 
-```docker run -d -p 9384:9384 -e AWS_ACCESS_KEY_ID=<access_key> -e AWS_SECRET_ACCESS_KEY=<secret_key> -e AWS_REGION=<region>  nadeemjamali/sqs-prometheus-exporter```
+```docker run -d -p 9384:9384 -e AWS_ACCESS_KEY_ID=<access_key> -e AWS_SECRET_ACCESS_KEY=<secret_key> -e AWS_REGION=<region>  bruceleo1969/sqs-exporter```
+

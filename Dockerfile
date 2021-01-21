@@ -1,20 +1,15 @@
-FROM golang:1.13.3
+FROM golang as builder
 
-WORKDIR /go/src/github.com/nadeemjamali/sqs-prometheus-exporter/
- 
-COPY .  .
-
-RUN go get -d ./...
-
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sqs-prometheus-exporter .
+WORKDIR /go/src/github.com/BruceLEO1969/sqs-exporter
+COPY . .
+RUN go mod tidy
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sqs-exporter .
 
 FROM alpine
 
-COPY --from=0 /go/src/github.com/nadeemjamali/sqs-prometheus-exporter /
-
-RUN apk --update add ca-certificates && \
-	rm -rf /var/cache/apk/*
+COPY --from=builder /go/src/github.com/BruceLEO1969/sqs-exporter
+RUN apk --update add --no-cache ca-certificates
 
 EXPOSE 9434
 
-CMD ["/sqs-prometheus-exporter"]
+CMD ["/sqs-exporter"]

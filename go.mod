@@ -1,9 +1,9 @@
-module github.com/nadeemjamali/sqs-prometheus-exporter
+module sqs-exporter
 
-go 1.13
+go 1.16
 
 require (
-	github.com/aws/aws-sdk-go v1.30.6
-	github.com/go-co-op/gocron v0.1.0
-	github.com/prometheus/client_golang v1.5.1
+	github.com/aws/aws-sdk-go v1.36.29
+	github.com/orcaman/concurrent-map v0.0.0-20210106121528-16402b402231
+	github.com/prometheus/client_golang v1.9.0
 )
