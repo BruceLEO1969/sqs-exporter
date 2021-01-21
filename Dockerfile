@@ -7,9 +7,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o sqs-exporter .
 
 FROM alpine
 
-COPY --from=builder /go/src/github.com/BruceLEO1969/sqs-exporter
+COPY --from=builder /go/src/github.com/BruceLEO1969/sqs-exporter/sqs-exporter /bin
 RUN apk --update add --no-cache ca-certificates
 
 EXPOSE 9434
 
-CMD ["/sqs-exporter"]
+CMD ["sqs-exporter"]
