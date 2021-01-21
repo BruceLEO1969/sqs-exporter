@@ -52,9 +52,9 @@ func MonitorSQS() error {
 		msgDelayed, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesDelayed"], 64)
 		msgNotVisible, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesNotVisible"], 64)
 
-		fmt.Printf("sqs_messages_visible{queue_name=\"%s} %+v\n", key, msgAvailable)
-		fmt.Printf("sqs_messages_delay{queue_name=\"%s} %+v\n", key, msgDelayed)
-		fmt.Printf("sqs_messages_not_visible{queue_name=\"%s} %+v\n", key, msgNotVisible)
+		fmt.Printf("sqs_messages_visible{queue_name=\"%s\"} %+v\n", key, msgAvailable)
+		fmt.Printf("sqs_messages_delayed{queue_name=\"%s\"} %+v\n", key, msgDelayed)
+		fmt.Printf("sqs_messages_invisible{queue_name=\"%s\"} %+v\n", key, msgNotVisible)
 
 		visibleMessageGauge.WithLabelValues(key).Set(msgAvailable)
 		delayedMessageGauge.WithLabelValues(key).Set(msgDelayed)
