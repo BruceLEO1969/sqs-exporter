@@ -53,9 +53,9 @@ func MonitorSQS() error {
 		msgDelayed, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesDelayed"], 64)
 		msgNotVisible, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesNotVisible"], 64)
 
-		//fmt.Printf("sqs_messages_visible{queue_name=\"%s} %+v\n", key, msgAvailable)
-		//fmt.Printf("sqs_messages_delay{queue_name=\"%s} %+v\n", key, msgDelayed)
-		//fmt.Printf("sqs_messages_not_visible{queue_name=\"%s} %+v\n", key, msgNotVisible)
+		fmt.Printf("sqs_messages_visible{queue_name=\"%s} %+v\n", key, msgAvailable)
+		fmt.Printf("sqs_messages_delay{queue_name=\"%s} %+v\n", key, msgDelayed)
+		fmt.Printf("sqs_messages_not_visible{queue_name=\"%s} %+v\n", key, msgNotVisible)
 
 		visibleMessageGauge.WithLabelValues(key).Set(msgAvailable)
 		delayedMessageGauge.WithLabelValues(key).Set(msgDelayed)
@@ -72,8 +72,6 @@ func getQueueName(url string) (queueName string) {
 }
 
 func getQueues() (queues cmap.ConcurrentMap, tags cmap.ConcurrentMap, err error) {
-	queuesStart := time.Now()
-
 	sess := session.Must(session.NewSession())
 	client := sqs.New(sess)
 	result, err := client.ListQueues(nil)
@@ -81,10 +79,6 @@ func getQueues() (queues cmap.ConcurrentMap, tags cmap.ConcurrentMap, err error)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	queuesDuration := time.Since(queuesStart)
-	fmt.Println("Total time of func getQueues():")
-	fmt.Println(queuesDuration)
 
 	//fmt.Println(result)
 	if result.QueueUrls == nil {
