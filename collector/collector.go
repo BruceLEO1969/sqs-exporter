@@ -48,17 +48,31 @@ func MonitorSQS() error {
 			return
 		}
 
-		msgAvailable, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessages"], 64)
-		msgDelayed, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesDelayed"], 64)
-		msgNotVisible, _ := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesNotVisible"], 64)
+		msgAvailable, msgError := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessages"], 64)
+		msgDelayed, delayError := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesDelayed"], 64)
+		msgNotVisible, invisibleError := strconv.ParseFloat(*attr.Attributes["ApproximateNumberOfMessagesNotVisible"], 64)
+
+		if msgError != nil {
+			fmt.Errorf("Error in converting ApproximateNumberOfMessages: %v", msgError)
+			return
+		}
+		visibleMessageGauge.WithLabelValues(key).Set(msgAvailable)
+
+		if delayError != nil {
+			fmt.Errorf("Error in converting ApproximateNumberOfMessagesDelayed: %v", delayError)
+			return
+		}
+		delayedMessageGauge.WithLabelValues(key).Set(msgDelayed)
+
+		if invisibleError != nil {
+			fmt.Errorf("Error in converting ApproximateNumberOfMessagesNotVisible: %v", invisibleError)
+			return
+		}
+		invisibleMessageGauge.WithLabelValues(key).Set(msgNotVisible)
 
 		fmt.Printf("sqs_messages_visible{queue_name=\"%s\"} %+v\n", key, msgAvailable)
 		fmt.Printf("sqs_messages_delayed{queue_name=\"%s\"} %+v\n", key, msgDelayed)
 		fmt.Printf("sqs_messages_invisible{queue_name=\"%s\"} %+v\n", key, msgNotVisible)
-
-		visibleMessageGauge.WithLabelValues(key).Set(msgAvailable)
-		delayedMessageGauge.WithLabelValues(key).Set(msgDelayed)
-		invisibleMessageGauge.WithLabelValues(key).Set(msgNotVisible)
 	})
 
 	return nil
@@ -108,8 +122,18 @@ func getQueues() (queues cmap.ConcurrentMap, tags cmap.ConcurrentMap, err error)
 				QueueUrl: aws.String(*urls),
 			}
 
-			resp, _ := client.GetQueueAttributes(params)
-			tagsResp, _ := client.ListQueueTags(tagsParams)
+			resp, err := client.GetQueueAttributes(params)
+			if err != nil {
+				fmt.Errorf("GetQueueAttributes Error: %v", err)
+				return
+			}
+
+			tagsResp, err := client.ListQueueTags(tagsParams)
+			if err != nil {
+				fmt.Errorf("ListQueueTags Error: %v", err)
+				return
+			}
+
 			queueName := getQueueName(*urls)
 
 			queues.Set(queueName, resp)
