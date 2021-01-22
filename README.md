@@ -63,5 +63,5 @@ The app needs sqs list and read access to the sqs policies
 
 You can provide the AWS credentials as environment variables depending upon your security rules configured in AWS;
 
-```docker run -d -p 9384:9384 -e AWS_ACCESS_KEY_ID=<access_key> -e AWS_SECRET_ACCESS_KEY=<secret_key> -e AWS_REGION=<region>  bruceleo1969/sqs-exporter```
+```docker run -d -p 9434:9434 -e AWS_ACCESS_KEY_ID=<access_key> -e AWS_SECRET_ACCESS_KEY=<secret_key> -e AWS_REGION=<region>  bruceleo1969/sqs-exporter```
 
