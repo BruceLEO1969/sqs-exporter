@@ -13,7 +13,7 @@ func recordMetrics() {
 	go func() {
 		for {
 			collector.MonitorSQS()
-			time.Sleep(10 * time.Second)
+			time.Sleep(30 * time.Second)
 		}
 	}()
 }
